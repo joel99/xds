@@ -2,15 +2,15 @@ import sys
 import numpy as np
 import scipy.io as sio
 from scipy import stats, signal
-from load_intan_rhd_format import read_data
+from xds_python.load_intan_rhd_format import read_data
 import copy
 import os.path
 from os import path
 from collections import defaultdict
-from xds_utils import parse_h5py, parse_scipy
-from xds_utils import get_char_pos, get_paired_EMG_index, find_bad_EMG_index_from_list, delete_paired_bad_channel
-from xds_utils import find_force_onset, find_movement_onset
-from xds_utils import find_target_dir
+from xds_python.xds_utils import parse_h5py, parse_scipy
+from xds_python.xds_utils import get_char_pos, get_paired_EMG_index, find_bad_EMG_index_from_list, delete_paired_bad_channel
+from xds_python.xds_utils import find_force_onset, find_movement_onset
+from xds_python.xds_utils import find_target_dir
 
 if sys.version[0] == '2':
     import cPickle as pickle
