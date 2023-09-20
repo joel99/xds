@@ -16,22 +16,22 @@ if sys.version[0] == '2':
     import cPickle as pickle
 else:
     import _pickle as pickle
-    
-    
+
+
 class lab_data:
     def __init__(self, base_path, file_name):
         if base_path[-1] != '/':
-            base_path = base_path + '/' 
+            base_path = base_path + '/'
         self.file_name = file_name[:-4]
         if not path.exists( base_path + file_name ):
             raise Exception( 'Can''t find file:' + file_name )
         self.parse_file(base_path, file_name)
-        
+
     def parse_file(self, base_path, file_name):
         try:
             parsed = parse_scipy(base_path, file_name)
         except Exception:
-            parsed = parse_h5py(base_path, file_name)        
+            parsed = parse_h5py(base_path, file_name)
         # -------- time_frame -------- #
         self.time_frame = parsed['time_frame']
         # -------- meta -------- #
@@ -57,7 +57,7 @@ class lab_data:
             self.has_raw_EMG = parsed['has_raw_EMG']
         # -------- trial information -------- #
         self.trial_target_corners = parsed['trial_target_corners']
-        self.trial_target_dir = parsed['trial_target_dir'] 
+        self.trial_target_dir = parsed['trial_target_dir']
         self.trial_result = parsed['trial_result']
         self.trial_start_time = parsed['trial_start_time']
         self.trial_end_time = parsed['trial_end_time']
@@ -68,7 +68,7 @@ class lab_data:
         self.spike_counts = parsed['spike_counts']
         self.spikes = parsed['spikes']
         self.unit_names = parsed['unit_names']
-        self.thresholds = parsed['thresholds']
+        self.thresholds = parsed.get('thresholds', None)
         if 'spike_waveforms' in parsed.keys():
             self.spike_waveforms = parsed['spike_waveforms']
         if 'EMG' in parsed.keys():
@@ -96,13 +96,13 @@ class lab_data:
             try:
                 self.n_force = np.size(self.force, 1)
             except:
-                pass       
+                pass
         else:
             self.n_force = 0
-            
+
         # -------- get rid of trials with nan timings -------- #
         self.clean_up_trials()
-        
+
         # -------- find out the target centers -------- #
         try:
             idx = self.trial_info_table_header.index('tgtCtr')
@@ -117,7 +117,7 @@ class lab_data:
             self.trial_target_center_y = target_center[:, 1]
         except Exception:
             print('No information about target center in this file')
-        
+
         # -------- for multigadget files with more than 1 gadget activated, find out the gadget number --------- #
         if '_MG_' in self.file_name:
             try:
@@ -125,12 +125,12 @@ class lab_data:
                 self.trial_gadget_number = np.asarray(self.trial_info_table[idx]).squeeze()
             except Exception:
                 print('Lack of gadget information in the data file!')
-            
+
     def get_meta(self):
         a = dict()
         a = self.__meta
         return a
-        
+
     def print_file_info(self):
         print('Monkey: %s' % (self.__meta['monkey_name']))
         print('Task: %s' % (self.__meta['task_name']))
@@ -148,16 +148,16 @@ class lab_data:
         print('The dataset lasts %.4f seconds' % (self.__meta['duration']))
         print('There are %d trials' % (len(self.trial_result)))
         print('In %d trials the monkey got reward' % (len(np.where(self.trial_result == 'R')[0])))
-    
+
     def print_trial_info_table_header(self):
         for each in self.trial_info_table_header:
             print(each)
-            
+
     def get_one_colum_in_trial_info_table(self, colum_name):
         n = np.where(np.asarray(self.trial_info_table_header) == colum_name)[0][0]
         a = [each[n][0][0] for each in self.trial_info_table]
         return a
-    
+
     def save_to_pickle(self, path, file_name = 0):
         if path[-1] != '/':
             path = path + '/'
@@ -168,10 +168,10 @@ class lab_data:
         with open (f, 'wb') as fp:
             pickle.dump(self, fp)
         print('Save to %s successfully' %(f))
-        
+
     def clean_up_trials(self):
         """
-        For some trials the timings for trial_start, trial_end or trial_gocue are nans. 
+        For some trials the timings for trial_start, trial_end or trial_gocue are nans.
         This function will get rid of these trials.
 
         Returns
@@ -205,14 +205,14 @@ class lab_data:
                 for idx in union_nan_idx:
                     del(each[idx])
             print('Trials with nan timings have been removed!')
-        
+
     def compute_force_onset_time(self, channel = 0):
         """
         The force onset time during all trials, including rewarded, failed and aborted trials
         are calculated here
         """
         if hasattr(self, 'force'):
-            idx = [np.where((self.time_frame > t[0]) & (self.time_frame < t[1]) )[0] 
+            idx = [np.where((self.time_frame > t[0]) & (self.time_frame < t[1]) )[0]
                    for t in zip(self.trial_start_time, self.trial_end_time)]
             trial_time_frame = [self.time_frame[n] for n in idx]
             trial_force = [self.force[n] for n in idx]
@@ -222,14 +222,14 @@ class lab_data:
             self.trial_force_onset_time = np.asarray(time_onset)
         else:
             print('There is no force data in this file')
-    
+
     def compute_movement_onset_time(self, channel = 0, thr = 0.4):
         """
         This function is almost the same as the one defined above. For consistency considerations
         here both functions are kept.
         """
         if (hasattr(self, 'curs_p')|hasattr(self, 'kin_p')):
-            idx = [np.where((self.time_frame > t[0]) & (self.time_frame < t[1]) )[0] 
+            idx = [np.where((self.time_frame > t[0]) & (self.time_frame < t[1]) )[0]
                    for t in zip(self.trial_start_time, self.trial_end_time)]
             trial_time_frame = [self.time_frame[n] for n in idx]
             trial_curs_p = [self.curs_p[n] for n in idx]
@@ -239,7 +239,7 @@ class lab_data:
             self.trial_movement_onset_time = np.asarray(time_onset)
         else:
             print('There is no force data in this file')
-    
+
     def get_trials_idx(self, my_type, start_event, time_before_start, end_event = 'end_time', time_after_end = 0, raw_flag = 0, gadget_number = -1):
         """
         This function returns a list containing the indices for extracting the data for each trial
@@ -284,7 +284,7 @@ class lab_data:
         elif start_event == 'pickupTime':
             idx = self.trial_info_table_header.index('pickupTime')
             time_start = [each[0][0] for each in self.trial_info_table[idx]]
-        
+
         if end_event == 'start_time':
             time_end = self.trial_start_time
         elif end_event == 'gocue_time':
@@ -304,7 +304,7 @@ class lab_data:
         elif start_event == 'pickupTime':
             idx = self.trial_info_table_header.index('pickupTime')
             time_end = [each[0][0] for each in self.trial_info_table[idx]]
-        
+
         if (my_type == 'R')|(my_type == 'F'):
             # Get the indices of a specific type of trials, 'R' or 'F'
             type_trial = np.where(self.trial_result == my_type)[0]
@@ -335,7 +335,7 @@ class lab_data:
                     print('The timing with trial No. %d is not right.'%(n))
                 trials_idx.append(idx)
         return trials_idx
-    
+
     def get_trial_info(self, my_type = 'R', gadget_number = -1):
         trial_info_list = []
         if (my_type == 'R')|(my_type == 'F'):
@@ -373,25 +373,25 @@ class lab_data:
                 if hasattr(self, 'trial_movement_onset_time'):
                     trial_info['trial_movement_onset_time'] = self.trial_movement_onset_time[each]
                 trial_info_list.append(trial_info)
-        return trial_info_list         
-    
+        return trial_info_list
+
     def get_trials_data_spike_counts(self, my_type = 'R', trial_start = 'start_time', time_ahead = 0, end_event = 'end_time', end_time_offset = 0, gadget_number = -1):
-        idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event, 
+        idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event,
                                   end_time_offset, gadget_number = gadget_number)
         trial_spike_counts = [self.spike_counts[n, :] for n in idx]
         return trial_spike_counts
-    
+
     def get_trials_data_time_frame(self, my_type = 'R', trial_start = 'start_time', time_ahead = 0, end_event = 'end_time', end_time_offset = 0, gadget_number = -1):
-        idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event, 
+        idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event,
                                   end_time_offset, gadget_number = gadget_number)
         return [self.time_frame[n] for n in idx]
-    
+
     def get_trials_data_EMG(self, my_type = 'R', trial_start = 'start_time', time_ahead = 0, end_event = 'end_time', end_time_offset = 0, EMG_channels = 'all', gadget_number = -1):
         if self.has_EMG == 0:
             print('There is no EMG in this file')
             return 0
         else:
-            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event, 
+            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event,
                                       end_time_offset, gadget_number = gadget_number)
             if EMG_channels == 'all':
                 return [self.EMG[n, :] for n in idx]
@@ -399,18 +399,18 @@ class lab_data:
                EMG_channels_idx = [self.EMG_names.index(each) for each in EMG_channels]
                temp = self.EMG[:, EMG_channels_idx]
                return [temp[n, :] for n in idx]
-        
+
     def get_trials_data_raw_EMG(self, my_type = 'R', trial_start = 'start_time', time_ahead = 0, end_event = 'end_time', end_time_offset = 0, EMG_channels = 'all', gadget_number = -1):
         if self.has_EMG == 0:
             print('There is no EMG in this file')
             return 0
         else:
-            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event, 
+            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event,
                                       end_time_offset, 1, gadget_number = gadget_number)
             if EMG_channels == 'all':
                 return [self.raw_EMG[n, :] for n in idx]
             else:
-               EMG_channels_idx = [self.EMG_names.index(each) for each in EMG_channels] 
+               EMG_channels_idx = [self.EMG_names.index(each) for each in EMG_channels]
                return [self.raw_EMG[n, EMG_channels_idx] for n in idx]
 
     def get_trials_data_force(self, my_type = 'R', trial_start = 'start_time', time_ahead = 0, end_event = 'end_time', end_time_offset = 0, gadget_number = -1):
@@ -418,45 +418,45 @@ class lab_data:
             print('There is no force in this file')
             return 0
         else:
-            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event, 
+            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event,
                                       end_time_offset, gadget_number = gadget_number)
             return [self.force[n, :] for n in idx]
-            
+
     def get_trials_data_kin(self, my_type = 'R', trial_start = 'start_time', time_ahead = 0, end_event = 'end_time', end_time_offset = 0, gadget_number = -1):
         if hasattr(self, 'has_cursor'):
             flag = self.has_cursor
         elif hasattr(self, 'has_kin'):
             flag = self.has_kin
-        
+
         if flag == 0:
             print('There is no cursor trajectories in this file!')
             return 0
         else:
-            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event, 
+            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event,
                                       end_time_offset, gadget_number = gadget_number)
             if hasattr(self, 'curs_p'):
                 return [self.curs_p[n, :] for n in idx], [self.curs_v[n, :] for n in idx], [self.curs_a[n, :] for n in idx]
             elif hasattr(self, 'kin_p'):
                 return [self.kin_p[n, :] for n in idx], [self.kin_v[n, :] for n in idx], [self.kin_a[n, :] for n in idx]
-    
+
     def get_trials_data_cursor(self, my_type = 'R', trial_start = 'start_time', time_ahead = 0, end_event = 'end_time', end_time_offset = 0, gadget_number = -1):
         if hasattr(self, 'has_cursor'):
             flag = self.has_cursor
         elif hasattr(self, 'has_kin'):
             flag = self.has_kin
-        
+
         if flag == 0:
             print('There is no cursor trajectories in this file!')
             return 0
         else:
-            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event, 
+            idx = self.get_trials_idx(my_type, trial_start, time_ahead, end_event,
                                       end_time_offset, gadget_number = gadget_number)
             if hasattr(self, 'curs_p'):
                 return [self.curs_p[n, :] for n in idx], [self.curs_v[n, :] for n in idx], [self.curs_a[n, :] for n in idx]
             elif hasattr(self, 'kin_p'):
                 return [self.kin_p[n, :] for n in idx], [self.kin_v[n, :] for n in idx], [self.kin_a[n, :] for n in idx]
-      
-    def get_trials_data_spikes(self, my_type = 'R', trial_start = 'start_time', 
+
+    def get_trials_data_spikes(self, my_type = 'R', trial_start = 'start_time',
                           time_ahead = 0, end_event = 'end_time', end_time_offset = 0, gadget_number = -1):
         trial_spike = []
         trial_time_frame = self.get_trials_data_time_frame(my_type, trial_start, time_ahead, end_event, end_time_offset, gadget_number)
@@ -471,7 +471,7 @@ class lab_data:
                 temp.append(s)
             trial_spike.append(temp)
         return trial_spike
-    
+
     def update_target_dir(self):
         """
         In some files the directions for the reaching targets are wrong. To get the right target directions
@@ -482,9 +482,9 @@ class lab_data:
             trial_curs_p = self.get_trials_data_cursor('ALL', 'gocue_time', 0, 'end_time', 0)[0]
         elif hasattr(self, 'kin_p'):
             trial_curs_p = self.get_trials_data_kin('ALL', 'gocue_time', 0, 'end_time', 0)[0]
-        new_dir = find_target_dir(trial_curs_p, [-135, -90, -45, 0, 45, 90, 135, 180])     
+        new_dir = find_target_dir(trial_curs_p, [-135, -90, -45, 0, 45, 90, 135, 180])
         self.trial_target_dir = new_dir
-    
+
     def update_bin_data(self, new_bin_size, update = 1):
         if hasattr(self, 'has_cursor'):
             flag_cursor = self.has_cursor
@@ -505,7 +505,7 @@ class lab_data:
                 curs_p = curs_p[:len(t_spike), :]
                 curs_v = curs_v[:len(t_spike), :]
                 curs_a = curs_a[:len(t_spike), :]
-        
+
         if update == 1:
             self.time_frame = t_spike
             self.bin_width = new_bin_size
@@ -519,12 +519,12 @@ class lab_data:
                     self.curs_p, self.curs_v, self.curs_a = curs_p, curs_v, curs_a
                 elif hasattr(self, 'kin_p'):
                     self.kin_p, self.kin_v, self.kin_a = curs_p, curs_v, curs_a
-    
+
     def bin_spikes(self, bin_size, mode = 'center'):
-        print('The new bin size is %.4f s' % (bin_size)) 
-        spike_counts = []         
+        print('The new bin size is %.4f s' % (bin_size))
+        spike_counts = []
         if mode == 'center':
-            bins = np.arange(self.time_frame[0] - bin_size/2, 
+            bins = np.arange(self.time_frame[0] - bin_size/2,
                              self.time_frame[-1] + bin_size/2, bin_size)
         elif mode == 'left':
             bins = np.arange(self.time_frame[0], self.time_frame[-1], bin_size)
@@ -535,7 +535,7 @@ class lab_data:
             spike_counts.append(out)
         bins = bins.reshape((len(bins),1))
         return bins[1:], np.asarray(spike_counts).T
-              
+
     def resample_EMG(self, new_bin_size):
         """
         Downsampling the filtered EMG
@@ -572,7 +572,7 @@ class lab_data:
             flag = self.has_cursor
         elif hasattr(self, 'has_kin'):
             flag = self.has_kin
-        
+
         if flag == 0:
             print('There is no kinematics in this file.')
             return 0
@@ -607,7 +607,7 @@ class lab_data:
             for i in range(0, int(kernel_hl)):
                 kernel[i] = 0
         n_sample = np.size(binned_spikes[0])
-        nm = np.convolve(kernel, np.ones((n_sample))).T[int(kernel_hl):n_sample + int(kernel_hl)] 
+        nm = np.convolve(kernel, np.ones((n_sample))).T[int(kernel_hl):n_sample + int(kernel_hl)]
         for each in binned_spikes:
             temp1 = np.convolve(kernel,each)
             temp2 = temp1[int(kernel_hl):n_sample + int(kernel_hl)]/nm
@@ -646,7 +646,7 @@ class lab_data:
             data = self.get_trials_data_time_frame(trial_type, start_event, ahead, end_event, end_time_offset)
         elif data_type == 'spikes':
             data = self.get_trials_data_spikes(trial_type, start_event, ahead, end_event, end_time_offset)
-        
+
         trial_type_idx = np.where(self.trial_result == 'R')[0]
         trial_all_target, trial_all_curs_p, trial_all_curs_v, trial_all_curs_a = [], [], [], []
         for each in target_dir_list:
@@ -661,9 +661,9 @@ class lab_data:
                 trial_all_target.append([data[i] for i in c])
         if data_type == 'cursor':
             return trial_all_curs_p, trial_all_curs_v, trial_all_curs_a
-        else:      
+        else:
             return trial_all_target
-        
+
     def sort_trials_target_center(self, x_or_y, data_type, target_center_list, trial_type, time_params, EMG_channels = 'all', gadget_number = -1):
         start_event = time_params['start_event']
         ahead = time_params['time_before_start']
@@ -695,7 +695,7 @@ class lab_data:
             data = self.get_trials_data_time_frame(trial_type, start_event, ahead, end_event, end_time_offset)
         elif data_type == 'spikes':
             data = self.get_trials_data_spikes(trial_type, start_event, ahead, end_event, end_time_offset)
-        
+
         trial_type_idx = np.where(self.trial_result == 'R')[0]
         trial_all_target, trial_all_curs_p, trial_all_curs_v, trial_all_curs_a = [], [], [], []
         for each in target_center_list:
@@ -716,9 +716,9 @@ class lab_data:
                 trial_all_target.append([data[i] for i in c])
         if data_type == 'cursor':
             return trial_all_curs_p, trial_all_curs_v, trial_all_curs_a
-        else:      
+        else:
             return trial_all_target
-        
+
     def get_electrode_idx(self, elec_num):
         """
         To get the idx of electrodes specified by elec_num
@@ -745,7 +745,7 @@ class lab_data:
         #---- These are numpy arrays ----#
         self.spike_counts = np.delete(self.spike_counts, idx, axis = 1)
         self.thresholds = np.delete(self.thresholds, idx)
-        
+
     def rethreshold(self, K):
         """
         K is a multiplier to get the new threshold
@@ -755,12 +755,12 @@ class lab_data:
             spikes = self.spikes
             th = self.thresholds
             new_th = [K*each for each in th]
-        
+
             idx = []
             for i in range(len(th)):
                 M = np.min(waveforms[i], axis = 1)
                 idx.append(np.where(M>new_th[i])[0])
-            
+
             waveforms_, spikes_ = [], []
             for i in range(len(th)):
                 waveforms_.append(np.delete(waveforms[i], idx[i], axis = 0))
@@ -769,7 +769,7 @@ class lab_data:
             self.spikes = spikes_
         else:
             pass
-   
+
 ###################################################################################################################################
 ###################################################################################################################################
 # -------- Starting from August, 2020, the EMGs during some in-lab recording sessions are recorded using DSPW system too -------- #
@@ -779,10 +779,10 @@ class lab_data:
 
 Pop_EMG_names_single = ['APB_1', 'Lum_1', 'PT_1', '1DI_1',
                         'FDP2_1', 'FCR1_1', 'FCU1_1', 'FCUR_1',
-                        'FCUR_2', 'FCU1_2',	'FCR1_2', 'FDP2_2', 
+                        'FCUR_2', 'FCU1_2',	'FCR1_2', 'FDP2_2',
                         '1DI_2', 'PT_2', 'Lum_2', 'APB_2',
-                        'FPB_1', '3DI_1', 'SUP_1', 'ECU_1', 
-                        'ECR_1', 'EDC1_1',	'BI_1', 'TRI_1', 
+                        'FPB_1', '3DI_1', 'SUP_1', 'ECU_1',
+                        'ECR_1', 'EDC1_1',	'BI_1', 'TRI_1',
                         'TRI_2', 'BI_2', 'EDC1_2', 'ECR_2',
                         'ECU_2', 'SUP_2', '3DI_2', 'FPB_2']
 """
@@ -795,47 +795,47 @@ For the datasets collected on all monkeys after 2018-12, channels 24, 25, and 26
 In summary, for the data collected between 2020-09 and 2020-10 on Pop, the indices and names for the bad EMG channels are as below:
 indices: [3, 7, 12, 16, 24, 25, 26]
 names: ['1DI_1', 'FCUR_1', '1DI_2', 'FPB_1', 'TRI_2', 'BI_2', 'EDC1_2']
-"""        
+"""
 class lab_data_DSPW_EMG(lab_data):
     def __init__(self, base_path, file_name, rhd_file_name, bad_EMG = [], bin_size = 0.001, comb_filter = 0, art_reject = 1):
         if base_path[-1] != '/':
             base_path = base_path + '/'
-        super(lab_data_DSPW_EMG, self).__init__(base_path, file_name) 
-        
+        super(lab_data_DSPW_EMG, self).__init__(base_path, file_name)
+
         if not path.exists( base_path + rhd_file_name ):
             raise Exception( 'Can''t find the file for DSPW EMG:' + file_name )
         self.parse_file_DSPW_EMG(base_path + rhd_file_name, 1, bad_EMG, 10, comb_filter, art_reject)
         self.bin_from_rhd(bin_size, mode = 'center')
         self.spike_counts, self.EMG = np.asarray(self.spike_counts).T, np.asarray(self.EMG).T
-            
+
     def parse_file_DSPW_EMG(self, file_name, notch, bad_EMG, f_lp = 10, comb_filter = 0, art_reject = 1):
         EMG_names, raw_EMG, raw_EMG_time_frame = self.parse_rhd_file(file_name, notch, bad_EMG, comb_filter, art_reject)
         self.EMG = self.EMG_filtering(raw_EMG, f_lp)
         self.has_EMG = 1
         self.EMG_names, self.raw_EMG, self.raw_EMG_time_frame = EMG_names, np.asarray(raw_EMG).T, raw_EMG_time_frame
-        
+
     def parse_rhd_file(self, filename, notch, bad_EMG, comb_filter, art_reject):
         rhd_data = read_data(filename)
         self.EMG_fs = rhd_data['frequency_parameters']['amplifier_sample_rate']
         EMG_single = rhd_data['amplifier_data']
-        
+
         # -------- To get the name for each individual EMG channel from the rhd file -------- #
         EMG_names_single = []
         for each in rhd_data['amplifier_channels']:
             EMG_names_single.append(each['custom_channel_name'])
-        
+
         # -------- Determine whether the labels for each EMG channel are needed to be replaced -------- #
         meta_info = self.get_meta()
         collect_date = meta_info['collect_date']
         slash_pos = get_char_pos(collect_date, '/')
         if slash_pos[1][0]-slash_pos[0][0] == 2:
             date_num = collect_date[:4]+'0'+collect_date[5]
-        elif slash_pos[1][0]-slash_pos[0][0] == 3: 
+        elif slash_pos[1][0]-slash_pos[0][0] == 3:
             date_num = collect_date[:4]+collect_date[5:7]
         if (int(date_num)>202003)&(int(date_num)<202011):
             EMG_names_single = copy.deepcopy(Pop_EMG_names_single)
             print('Using a fixed EMG channel definition for this dataset')
-        
+
         # -------- If the items in bad_EMG are numbers, these lines will find out the names -------- #
         if len(bad_EMG) > 0:
             if type(bad_EMG[0]) == int:
@@ -844,21 +844,21 @@ class lab_data_DSPW_EMG(lab_data):
                 bad_EMG_names = bad_EMG
         else:
             bad_EMG_names = []
-        
+
         # ---------- Delete paired bad channels -------- #
         bad_paired_channel, bad_EMG_post = delete_paired_bad_channel(EMG_names_single, bad_EMG_names)
         bad_paired_channel = sorted(bad_paired_channel, reverse = True)
         for each in bad_paired_channel:
             EMG_names_single.pop(each)
         EMG_single = np.delete(EMG_single, bad_paired_channel, axis = 0)
-        
+
         # ---------- To get paired EMG channels for software diffrence ---------- #
         EMG_names, EMG_index1, EMG_index2 = get_paired_EMG_index(EMG_names_single)
 
         EMG_diff = []
         for i in range(len(EMG_index1)):
             EMG_diff.append(EMG_single[EMG_index1[i], :] - EMG_single[EMG_index2[i], :])
-        
+
         # ---------- Based on the list in bad_EMG, substitute some channels with single end EMG ---------- #
         if bad_EMG:
             bad_idx, paired_idx = find_bad_EMG_index_from_list(EMG_names_single, bad_EMG_post)
@@ -869,29 +869,29 @@ class lab_data_DSPW_EMG(lab_data):
                 lost_idx = np.where(EMG_diff[target_idx]<-6300)[0]
                 if lost_idx.size > 0:
                     EMG_diff[target_idx][lost_idx] = EMG_diff[target_idx][lost_idx[0]-10]
-        
+
         # ---------- Apply artifacts rejection on EMG_diff ----------- #
         """
         For all dataset, artifacts rejection is necessary, must be done
         """
         if art_reject == 1:
-            EMG_diff = self.EMG_art_rej(EMG_diff)        
+            EMG_diff = self.EMG_art_rej(EMG_diff)
         # ---------- Apply notch filter on EMG_diff ---------- #
         if notch == 1:
            print('Applying notch filter.')
            bnotch, anotch =  signal.iirnotch(60, 30, self.EMG_fs)
-           for (i, each) in enumerate(EMG_diff): 
+           for (i, each) in enumerate(EMG_diff):
                EMG_diff[i] = signal.filtfilt(bnotch, anotch, each)
         else:
             print('No notch filter is applied.')
-        
+
         # ---------- Apply comb filter on EMG_diff ----------- #
         if comb_filter == 1:
             EMG_diff = self.apply_comb_filter(EMG_diff, self.EMG_fs)
             print('Applying comb filter.')
-        
+
         EMG_diff = np.asarray(EMG_diff)
-        
+
         sync_line0 = rhd_data['board_dig_in_data'][0]
         sync_line1 = rhd_data['board_dig_in_data'][1]
         d0 = np.where(sync_line0 == True)[0]
@@ -902,10 +902,10 @@ class lab_data_DSPW_EMG(lab_data):
         #de = int(d1[-1] + int((d0[-1]-d1[-1])*0.2))
         rhd_timeframe = np.arange(de-ds+1)/self.EMG_fs
         return EMG_names, list(EMG_diff[:, ds:de]), rhd_timeframe
-    
+
     def EMG_filtering(self, raw_EMG_data, f_Hz, art_reject = 1):
         fs = self.EMG_fs
-        filtered_EMG = []    
+        filtered_EMG = []
         bhigh, ahigh = signal.butter(4,50/(fs/2), 'high')
         blow, alow = signal.butter(4,f_Hz/(fs/2), 'low')
         for each in raw_EMG_data:
@@ -913,7 +913,7 @@ class lab_data_DSPW_EMG(lab_data):
             if art_reject == 1:
                 temp = self.EMG_art_rej_single_channel(temp)
             f_abs_emg = signal.filtfilt(blow ,alow, np.abs(temp))
-            filtered_EMG.append(f_abs_emg)   
+            filtered_EMG.append(f_abs_emg)
         print('All EMG channels have been filtered.')
         return filtered_EMG
 
@@ -922,7 +922,7 @@ class lab_data_DSPW_EMG(lab_data):
         binned_spikes = []
         bin_start = self.time_frame[0]
         if mode == 'center':
-            bins = np.arange(bin_start - bin_size/2, 
+            bins = np.arange(bin_start - bin_size/2,
                              self.time_frame[-1] + bin_size/2, bin_size)
         elif mode == 'left':
             bins = np.arange(bin_start, self.time_frame[-1], bin_size)
@@ -931,8 +931,8 @@ class lab_data_DSPW_EMG(lab_data):
             each = each.reshape((len(each),))
             out, _ = np.histogram(each, bins)
             binned_spikes.append(out)
-        return bins[1:], binned_spikes        
-      
+        return bins[1:], binned_spikes
+
     def EMG_downsample_rhd(self, new_fs):
         if hasattr(self, 'EMG'):
             down_sampled = []
@@ -946,7 +946,7 @@ class lab_data_DSPW_EMG(lab_data):
         else:
             print('Filter EMG first!')
             return 0
-        
+
     def raw_force_downsample(self, new_fs):
         """
         The sampling frequency for raw forces from Cerebus is calculated from the timeframe.
@@ -967,8 +967,8 @@ class lab_data_DSPW_EMG(lab_data):
             return np.asarray(down_sampled)
         else:
             print('There are now raw force data in this file')
-            return 0 
-        
+            return 0
+
     def bin_from_rhd(self, bin_size, mode = 'center'):
         print('Bin data from both Cerebus recorded nev file and DSPW recorded rhd file')
         self.time_frame, self.spike_counts = self.bin_spikes_with_rhd(bin_size, mode)
@@ -1005,7 +1005,7 @@ class lab_data_DSPW_EMG(lab_data):
             for j in range(len(f_list)):
                 output_signal[i] = signal.filtfilt(b[j], a[j], input_signal[i])
         return output_signal
-        
+
     def EMG_art_rej(self, data_list, k = 8, L = 8):
         print('Rejecting high amplitude EMG artifacts.')
         data_list_post = []
@@ -1024,7 +1024,7 @@ class lab_data_DSPW_EMG(lab_data):
             subs = np.random.rand(len(u_idx))*np.std(data)
             data[u_idx] = subs
             data_list_post.append(data)
-        return data_list_post     
+        return data_list_post
 
     def EMG_art_rej_single_channel(self, data, k = 8, L = 8):
         #print('Rejecting high amplitude EMG artifacts on single channel.')
@@ -1041,32 +1041,32 @@ class lab_data_DSPW_EMG(lab_data):
         u_idx = list(np.delete(u_idx, over_idx))
         subs = np.random.rand(len(u_idx))*np.std(data)
         data[u_idx] = subs
-        return data                             
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-            
-            
-            
-            
-            
-            
-            
+        return data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

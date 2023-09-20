@@ -13,7 +13,7 @@ def parse_h5py(path, file_name):
             for each in b:
                 b_.append(''.join([chr(c) for c in each]))
             return b_
-    
+
     def parse_meta(raw_meta):
         meta = {}
         meta['ranBy'] = ''.join([chr(int(each)) for each in np.asarray(raw_meta['ranBy'])])
@@ -31,13 +31,13 @@ def parse_h5py(path, file_name):
         meta['numFail'] = np.asarray(raw_meta['numFail'])[0][0]
         meta['dataWindow'] = np.asarray(raw_meta['dataWindow'])
         return meta
-        
+
     parsed = {}
     if path[-1] != '/':
         path = path + '/'
     read_data = h5py.File(path + file_name, 'r')
     xds = read_data['xds']
-    
+
     parsed['has_EMG'] = np.asarray(xds['has_EMG'])[0][0]
     parsed['has_force'] = np.asarray(xds['has_force'])[0][0]
     parsed['has_kin'] = np.asarray(xds['has_kin'])[0][0]
@@ -52,14 +52,17 @@ def parse_h5py(path, file_name):
         parsed['has_raw_force'] = np.asarray(xds['has_raw_force'])[0][0]
     except Exception:
         parsed['has_raw_force'] = 0
-    
+
     parsed['spikes'] = [read_data[xds['spikes'][i][0]][()].T for i in range(len(xds['spikes']))]
     parsed['spike_counts'] = np.asarray(xds['spike_counts'], dtype = np.uint8).T
     temp = [read_data[xds['unit_names'][i][0]][()] for i in range( len(xds['unit_names']) )]
     parsed['unit_names'] = [arr_to_str(each) for each in temp]
     parsed['time_frame'] = np.asarray(xds['time_frame']).reshape((-1, ))
-    parsed['thresholds'] = np.asarray(xds['thresholds']).reshape((-1, ))
-    
+    if 'thresholds' in xds.keys():
+        parsed['thresholds'] = np.asarray(xds['thresholds']).reshape((-1, ))
+    else:
+        parsed['thresholds'] = np.asarray([0.0]*len(parsed['unit_names']))
+
     if 'spike_waveforms' in xds.keys():
         parsed['spike_waveforms'] = [read_data[xds['spike_waveforms'][i][0]][()].T for i in range(len(xds['spike_waveforms']))]
     if 'EMG' in xds.keys():
@@ -88,7 +91,7 @@ def parse_h5py(path, file_name):
             if 'curs_p' in parsed.keys():
                 if len(parsed['curs_p'])>0:
                     parsed['has_cursor'] = 1
-    
+
     # -------- handling trial timing related variables -------- #
     parsed['trial_start_time'] = np.asarray(xds['trial_start_time']).reshape((-1, ))
     parsed['trial_end_time'] = np.asarray(xds['trial_end_time']).reshape((-1, ))
@@ -103,10 +106,10 @@ def parse_h5py(path, file_name):
     parsed['trial_target_dir'] = np.asarray(xds['trial_target_dir']).reshape((-1, ))
     parsed['trial_target_corners'] = np.asarray(xds['trial_target_corners']).T
     parsed['trial_result'] = np.asarray([chr(each) for each in np.asarray(xds['trial_result']).reshape((-1, ))])
-    
+
     temp = [read_data[xds['trial_info_table_header'][0][i]][()] for i in range( xds['trial_info_table_header'].shape[1] )]
     parsed['trial_info_table_header'] = [arr_to_str(each) for each in temp]
-    
+
     r, c = xds['trial_info_table'].shape
     trial_info_table = []
     for i in range(r):
@@ -115,9 +118,9 @@ def parse_h5py(path, file_name):
             temp.append(read_data[xds['trial_info_table'][i][j]][()])
         trial_info_table.append(temp)
     parsed['trial_info_table'] = trial_info_table
-    
+
     parsed['meta'] = parse_meta(xds['meta'])
-    
+
     read_data.close()
     return parsed
 
@@ -127,7 +130,7 @@ def parse_scipy(path, file_name):
         path = path + '/'
     read_data = sio.loadmat(path + file_name)
     xds = read_data['xds']
-    
+
     # -------- meta information -------- #
     parsed['meta'] = {}
     parsed['meta']['monkey'] = xds['meta'][0][0]['monkey'][0][0][0]
@@ -144,7 +147,7 @@ def parse_scipy(path, file_name):
     parsed['meta']['numAbort'] = xds['meta'][0][0]['numAbort'][0][0][0][0]
     parsed['meta']['numFail'] = xds['meta'][0][0]['numFail'][0][0][0][0]
     parsed['meta']['dataWindow'] = xds['meta'][0][0]['dataWindow'][0][0][0]
-    
+
     # -------- flag variables -------- #
     parsed['has_EMG'] = xds['has_EMG'][0][0][0][0]
     parsed['has_kin'] = xds['has_kin'][0][0][0][0]
@@ -160,7 +163,7 @@ def parse_scipy(path, file_name):
         parsed['has_raw_EMG'] = xds['has_raw_EMG'][0][0][0][0]
     except Exception:
         parsed['has_raw_EMG'] = 0
-    
+
     # -------- data -------- #
     parsed['time_frame'] = xds['time_frame'][0][0].reshape((-1, ))
     parsed['thresholds'] = xds['thresholds'][0][0].reshape((-1, ))
@@ -196,7 +199,7 @@ def parse_scipy(path, file_name):
         if 'curs_p' in parsed.keys():
             if len(parsed['curs_p'])>0:
                 parsed['has_cursor'] = 1
-    
+
     try:
         parsed['raw_EMG'] = xds['raw_EMG'][0][0]
         parsed['raw_EMG_time_frame'] = xds['raw_EMG_time_frame'][0][0]
@@ -216,7 +219,7 @@ def parse_scipy(path, file_name):
     parsed['trial_result'] = xds['trial_result'][0][0]
     parsed['trial_info_table'] = xds['trial_info_table'][0][0].T.tolist()
     parsed['trial_info_table_header'] = [str(each.tolist()[0][0]) for each in xds['trial_info_table_header'][0][0]]
-        
+
     return parsed
 
 def get_char_pos(string, char):
@@ -305,12 +308,12 @@ def find_force_onset(force_list, ch, thr = 0.4):
     for each in force_list:
         f = np.sqrt(each[:, 0]**2 + each[:, 1]**2)
         df = np.diff(f)
-        temp = np.where(df >= thr*np.max(df))[0]              
+        temp = np.where(df >= thr*np.max(df))[0]
         if len(temp) == 0:
             onset_num.append(0)
         else:
             onset_num.append(temp[0])
-    return onset_num                 
+    return onset_num
 
 def find_movement_onset(var_list, ch, thr):
     """
@@ -321,18 +324,18 @@ def find_movement_onset(var_list, ch, thr):
     for each in var_list:
         f = np.sqrt(each[:, 0]**2 + each[:, 1]**2)
         df = np.diff(f)
-        temp = np.where(df >= thr*np.max(df))[0]              
+        temp = np.where(df >= thr*np.max(df))[0]
         if len(temp) == 0:
             onset_num.append(0)
         else:
             onset_num.append(temp[0])
-    return onset_num                 
-    
+    return onset_num
+
 def find_target_dir(trial_curs_p, target_list = [-135, -90, -45, 0, 45, 90, 135, 180]):
     """
     This function is used to find out the directions of trials, because sometimes they are wrong in origninal recordings
-    
-    """   
+
+    """
     dirs = []
     for each in trial_curs_p:
         s = each[-1, :] - each[0, :]
@@ -346,7 +349,7 @@ def find_target_dir(trial_curs_p, target_list = [-135, -90, -45, 0, 45, 90, 135,
         elif (x==0)&(y<0):
             dirs.append(-90)
         elif (x>0)&(y!=0):
-            dirs.append(np.arctan(y/x)*180/np.pi)  
+            dirs.append(np.arctan(y/x)*180/np.pi)
         elif (x<0)&(y!=0):
             dirs.append(np.arctan(y/x)*180/np.pi+y/abs(y)*180)
     dirs_ = []
@@ -357,18 +360,18 @@ def find_target_dir(trial_curs_p, target_list = [-135, -90, -45, 0, 45, 90, 135,
             idx = np.argmin(abs(target_list - each))
             dirs_.append(target_list[idx])
     return np.array(dirs_)
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
