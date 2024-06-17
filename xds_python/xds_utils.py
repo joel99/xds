@@ -38,10 +38,10 @@ def parse_h5py(path, file_name):
     read_data = h5py.File(path + file_name, 'r')
     xds = read_data['xds']
 
-    parsed['has_EMG'] = np.asarray(xds['has_EMG'])[0][0]
-    parsed['has_force'] = np.asarray(xds['has_force'])[0][0]
-    parsed['has_kin'] = np.asarray(xds['has_kin'])[0][0]
-    parsed['has_cursor'] = np.asarray(xds['has_kin'])[0][0]
+    parsed['has_EMG'] = np.asarray(xds['has_EMG'])[0][0] if 'has_EMG' in xds else 0
+    parsed['has_force'] = np.asarray(xds['has_force'])[0][0] if 'has_force' in xds else 0
+    parsed['has_kin'] = np.asarray(xds['has_kin'])[0][0] if 'has_kin' in xds else 0
+    parsed['has_cursor'] = np.asarray(xds['has_cursor'])[0][0] if 'has_cursor' in xds else 0
     parsed['sorted'] = np.asarray(xds['sorted'])[0][0]
     parsed['bin_width'] = np.asarray(xds['bin_width'])[0][0]
     try:
